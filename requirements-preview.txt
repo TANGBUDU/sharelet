@@ -1,0 +1,3 @@
+# For portable MCP connections, the owner controller and example MCP servers.
+# Built-in standalone text tools use only the Python standard library.
+mcp==1.26.0
