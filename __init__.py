@@ -10,7 +10,7 @@ _RUNTIME = {}
 
 
 def register(ctx):
-    info = {"service": "disabled", "version": "0.5.1"}
+    info = {"service": "disabled", "version": "0.5.2"}
     def status(args, **kwargs):
         runtime = _RUNTIME.get("runtime")
         return json.dumps({"ok": True, **(runtime.info if runtime else info)})
@@ -34,8 +34,8 @@ def register(ctx):
     runtime=Runtime(root,bridge.call,bridge.catalog,connection={"mode":"hermes","label":"Connected through Hermes"},
                     port=port,guest_port=guest_port,binary=ctx.get_config("cloudflared_path",None),generation_limit=limit,
                     execution_limit=executions,connector=bridge,
-                    # Stable links by default; set relay_url to "" to use raw tunnel links, or
-                    # public_origin to an address you run yourself (Tailscale Funnel, named tunnel).
+                    # Raw tunnel links by default. A creator may explicitly configure their own
+                    # relay or a fixed public_origin (Tailscale Funnel, named tunnel).
                     relay_url=ctx.get_config("relay_url",DEFAULT_RELAY),public_origin=ctx.get_config("public_origin",""))
     ctx.on_unload(runtime.close)
     runtime.start()

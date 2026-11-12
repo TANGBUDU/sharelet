@@ -1,0 +1,42 @@
+{
+  "version": "2026.10.7",
+  "verified_assets": [
+    {
+      "name": "cloudflared-linux-amd64",
+      "size": 40274445,
+      "sha256": "1f99fb518b83dec2ba8d870a7cc991d82a77e6196295a3d2754ba17ab9f91872",
+      "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-linux-amd64"
+    },
+    {
+      "name": "cloudflared-linux-arm64",
+      "size": 37667293,
+      "sha256": "3df43aedc9ff291d1735b5cb576cb97e0b157488796db2e32b28aecabb445775",
+      "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-linux-arm64"
+    },
+    {
+      "name": "cloudflared-windows-amd64.exe",
+      "size": 55390512,
+      "sha256": "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343",
+      "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-windows-amd64.exe"
+    }
+  ],
+  "targets": {
+    "linux-amd64": {
+      "asset": "cloudflared-linux-amd64",
+      "sha256": "1f99fb518b83dec2ba8d870a7cc991d82a77e6196295a3d2754ba17ab9f91872"
+    },
+    "linux-arm64": {
+      "asset": "cloudflared-linux-arm64",
+      "sha256": "3df43aedc9ff291d1735b5cb576cb97e0b157488796db2e32b28aecabb445775"
+    },
+    "windows-amd64": {
+      "asset": "cloudflared-windows-amd64.exe",
+      "sha256": "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343"
+    },
+    "windows-arm64": {
+      "asset": "cloudflared-windows-amd64.exe",
+      "sha256": "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343"
+    }
+  },
+  "windows_arm64": "Upstream publishes no native Windows ARM64 binary for this tag. Windows 11 ARM64 uses the official Windows AMD64 executable with OS x64 emulation; this path is not hardware-tested."
+}

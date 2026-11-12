@@ -160,10 +160,10 @@ class NullableTests(unittest.TestCase):
 
 
 class ProviderConsentTests(unittest.TestCase):
-    def test_host_environment_key_is_inactive_until_owner_explicitly_enables_it(self):
+    def test_profile_key_is_inactive_until_owner_explicitly_enables_it(self):
         key=secrets.token_urlsafe(32)
         with tempfile.TemporaryDirectory() as folder,patch.dict('os.environ',{'OPENAI_API_KEY':key}):
-            settings=ProviderSettings(folder)
+            settings=ProviderSettings(folder, secret_reader=lambda:key)
             self.assertTrue(settings.public()['host_key_available']);self.assertFalse(settings.public()['configured'])
             with patch('image_provider._openai_json') as transport:
                 with self.assertRaises(RuntimeError):generate_avatar('test fox','clay',settings_path=settings.path)
@@ -172,7 +172,7 @@ class ProviderConsentTests(unittest.TestCase):
             self.assertNotIn(key,settings.path.read_text())
             response={'data':[{'b64_json':base64.b64encode(PNG).decode()}]}
             with patch('image_provider._openai_json',return_value=response) as transport:
-                generate_avatar('test fox','clay',settings_path=settings.path);transport.assert_called_once()
+                generate_avatar('test fox','clay',settings_path=settings.path,secret_reader=settings._secret_reader);transport.assert_called_once()
 
 
 class TunnelHealthTests(unittest.TestCase):
@@ -196,7 +196,7 @@ class TunnelHealthTests(unittest.TestCase):
             if len(checks)>1:raise ConnectionError('controlled offline edge')
             return Response()
         with tempfile.TemporaryDirectory() as folder:
-            link=PublicLink(folder);link.bin.parent.mkdir();link.bin.write_bytes(b'controlled');link.guest_port=12345
+            link=PublicLink(folder,binary=Path(folder)/'bin'/'controlled');link.bin.parent.mkdir();link.bin.write_bytes(b'controlled');link.guest_port=12345
             with patch('tunnel.subprocess.Popen',return_value=Process()),patch('tunnel.urlopen',side_effect=request),patch('tunnel.HEALTH_INTERVAL',.02):
                 try:
                     link.start()

@@ -9,7 +9,7 @@ function Open-ShareletEntry([string]$AccessPath) {
         $uri = [Uri]$entry.owner_url
         if ($uri.Scheme -ne 'http' -or $uri.Host -notin @('127.0.0.1','localhost')) { return $false }
         $health = Invoke-RestMethod -Uri ($uri.GetLeftPart([UriPartial]::Authority) + '/healthz') -TimeoutSec 2
-        if ($health.ok -and -not $health.guest_only -and $health.version -in @('0.4.2','0.4.3','0.4.4','0.4.5','0.4.6','0.5.0','0.5.1')) {
+        if ($health.ok -and -not $health.guest_only -and $health.version -in @('0.4.2','0.4.3','0.4.4','0.4.5','0.4.6','0.5.0','0.5.1','0.5.2')) {
             Start-Process -FilePath $entry.owner_url
             return $true
         }

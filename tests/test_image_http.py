@@ -180,7 +180,7 @@ class TunnelTests(unittest.TestCase):
             def terminate(self): closed.set()
             def wait(self, timeout=None): return 0
         with tempfile.TemporaryDirectory() as folder:
-            connector = PublicLink(folder)
+            connector = PublicLink(folder, binary=Path(folder)/'bin'/'test-connector')
             connector.bin.parent.mkdir()
             connector.bin.write_bytes(b'existing controlled connector')
             connector.guest_port = 12345
@@ -197,10 +197,7 @@ class TunnelTests(unittest.TestCase):
     def test_connector_checksum_mismatch_cannot_install_executable(self):
         with tempfile.TemporaryDirectory() as folder:
             connector = PublicLink(folder)
-            name = 'cloudflared-windows-amd64.exe'
-            release = {'assets': [{'name': name, 'digest': 'sha256:' + '0'*64,
-                                   'browser_download_url': 'https://github.com/cloudflare/cloudflared/releases/download/test/' + name}]}
-            responses = [io.BytesIO(json.dumps(release).encode()), io.BytesIO(b'wrong binary')]
+            responses = [io.BytesIO(b'wrong binary')]
             with patch('tunnel.platform.system', return_value='Windows'), \
                  patch('tunnel.platform.machine', return_value='AMD64'), \
                  patch('tunnel.urlopen', side_effect=responses):
@@ -212,7 +209,7 @@ class TunnelTests(unittest.TestCase):
     def test_connector_does_not_inherit_image_provider_secrets(self):
         # The subprocess environment allowlist is also checked here without launching a real tunnel.
         with tempfile.TemporaryDirectory() as folder:
-            connector = PublicLink(folder)
+            connector = PublicLink(folder, binary=Path(folder)/'bin'/'test-connector')
             connector.bin.parent.mkdir()
             connector.bin.write_bytes(b'exists')
             connector.guest_port = 12345

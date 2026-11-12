@@ -17,7 +17,8 @@ from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
-DEFAULT_RELAY = "https://sharelet.109-123-230-235.sslip.io"
+# Relay routing is opt-in. A default install never contacts an author-run relay.
+DEFAULT_RELAY = ""
 BEAT_SECONDS = 60
 POLL_SECONDS = 3
 

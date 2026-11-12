@@ -6,6 +6,7 @@ import binascii
 import json
 import os
 import secrets
+from contextvars import copy_context
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, HTTPRedirectHandler, build_opener
@@ -40,20 +41,38 @@ def _valid_key(value):
             and all(33 <= ord(c) <= 126 for c in value.strip()))
 
 
-def _credential(config):
-    """The key the owner entered here, or the host's OPENAI_API_KEY when they chose it.
+def capture_profile_key_reader():
+    """Carry the owner profile into HTTP, job and service-takeover threads."""
+    context = copy_context()
+    def read():
+        try:
+            from agent.secret_scope import get_secret
+        except ImportError:
+            # Standalone installs without Hermes can use an owner-entered key.
+            return None
+        try:
+            return context.copy().run(get_secret, 'OPENAI_API_KEY')
+        except RuntimeError:
+            # An unbound multiplex scope must never fall back to process credentials.
+            return None
+    return read
+
+
+def _credential(config, secret_reader=None):
+    """The owner's workspace key, or their explicitly enabled profile-scoped key.
 
     Other credential files are never read.
     """
     key = config.get("openai_key")
     if not key and config.get('use_host_key') is True:
-        key=os.environ.get('OPENAI_API_KEY')
+        key=(secret_reader or capture_profile_key_reader())()
     return key.strip() if _valid_key(key) else None
 
 
 class ProviderSettings:
-    def __init__(self, root):
+    def __init__(self, root, *, secret_reader=None):
         self.path = Path(root) / "provider.json"
+        self._secret_reader = secret_reader or capture_profile_key_reader()
 
     def read(self):
         try:
@@ -65,18 +84,18 @@ class ProviderSettings:
     def public(self):
         try:
             config = self.read()
-            configured = bool(_credential(config))
+            configured = bool(_credential(config, self._secret_reader))
         except (OSError, ValueError):
             config, configured = {}, False
         # No key, path, provider body or credential-derived identifier is returned.
         return {"provider": "openai", "configured": configured, "model": MODEL,
                 "size": SIZE, "num_images": 1, "quality": "low", "key_set": configured,
-                "host_key_available":_valid_key(os.environ.get('OPENAI_API_KEY')),
+                "host_key_available":_valid_key(self._secret_reader()),
                 "source": "host" if configured and config.get("use_host_key") is True else "owner"}
 
     def save(self, body):
         if isinstance(body,dict) and set(body)=={'use_host_key'}:
-            if body['use_host_key'] is not True or not _valid_key(os.environ.get('OPENAI_API_KEY')):
+            if body['use_host_key'] is not True or not _valid_key(self._secret_reader()):
                 raise CapsuleError('No valid host key is available to enable.')
             atomic_private(self.path,{'provider':'openai','use_host_key':True})
             return self.public()
@@ -111,7 +130,7 @@ def _openai_json(key, payload):
         return json.loads(raw)
 
 
-def generate_avatar(subject, style, model=MODEL, size=SIZE, num_images=1, style_notes="", *, settings_path=None):
+def generate_avatar(subject, style, model=MODEL, size=SIZE, num_images=1, style_notes="", *, settings_path=None, secret_reader=None):
     if (not isinstance(subject, str) or not 3 <= len(subject.strip()) <= 400
             or style not in STYLES or model != MODEL or type(size) is not int or size != SIZE
             or type(num_images) is not int or num_images != 1
@@ -123,7 +142,7 @@ def generate_avatar(subject, style, model=MODEL, size=SIZE, num_images=1, style_
     path = Path(configured_path)
     try:
         config = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
-        key = _credential(config)
+        key = _credential(config, secret_reader)
     except (OSError, ValueError):
         key = None
     if not key:

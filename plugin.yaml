@@ -1,5 +1,5 @@
 name: sharelet
-version: "0.5.1"
+version: "0.5.2"
 description: >-
   Turn a Hermes tool into a link anyone can use in a browser. Pick a tool, create the link, send it.
   Links have a run count and expiry, can be closed any time, and keep working across restarts.
@@ -8,3 +8,7 @@ license: MIT
 requires_hermes: ">=0.23.0"
 provides_tools:
   - sharelet_status
+requires_env:
+  - name: OPENAI_API_KEY
+    required: false
+    description: Optional profile key for owner-enabled image recipes; ordinary tool sharing needs no key.

@@ -17,12 +17,38 @@ CONNECT_TIMEOUT = 180
 HEALTH_INTERVAL = 30
 HEALTH_FAILURES = 2
 RETRY_DELAYS = (5, 15, 30, 60, 120, 300)
+CLOUDFLARED_VERSION = "2026.10.7"
+# Release-owned pins: never obtain a checksum from runtime release metadata.
+# Upstream has no Windows ARM64 binary. Windows 11 ARM64 uses its x64 emulator.
+CLOUDFLARED_ASSETS = {
+    ("linux", "amd64"): ("cloudflared-linux-amd64", "1f99fb518b83dec2ba8d870a7cc991d82a77e6196295a3d2754ba17ab9f91872"),
+    ("linux", "arm64"): ("cloudflared-linux-arm64", "3df43aedc9ff291d1735b5cb576cb97e0b157488796db2e32b28aecabb445775"),
+    ("windows", "amd64"): ("cloudflared-windows-amd64.exe", "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343"),
+    ("windows", "arm64"): ("cloudflared-windows-amd64.exe", "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343"),
+}
+MAX_CONNECTOR = 120 * 1024 * 1024
+
+
+def connector_asset():
+    system, machine = platform.system().lower(), platform.machine().lower()
+    architecture = "arm64" if machine in ("arm64", "aarch64") else "amd64" if machine in ("x86_64", "amd64") else None
+    if (system, architecture) not in CLOUDFLARED_ASSETS:
+        raise RuntimeError("Automatic connector installation supports Linux and Windows. Set a trusted cloudflared_path on this platform.")
+    if system == "windows" and architecture == "arm64":
+        try:
+            build = int(platform.version().rsplit('.', 1)[-1])
+        except ValueError:
+            build = 0
+        if build < 22000:
+            raise RuntimeError("Automatic installation on Windows ARM64 requires Windows 11 x64 emulation. Set a trusted cloudflared_path instead.")
+    return CLOUDFLARED_ASSETS[(system, architecture)]
 
 
 class PublicLink:
     def __init__(self, root, *, binary=None):
         self.root = Path(root)
         self.bin = Path(binary) if binary else self.root / "bin" / ("cloudflared.exe" if os.name == "nt" else "cloudflared")
+        self._managed = binary is None
         self.guest_port = None
         self._lock, self._epoch = threading.RLock(), 0
         self._process = None
@@ -75,21 +101,19 @@ class PublicLink:
                 return
             self._fail(epoch, "The public connector timed out. Reconnecting automatically.")
 
+    def _verified_cache(self):
+        if not self.bin.is_file() or self.bin.stat().st_size > MAX_CONNECTOR:
+            return False
+        _, expected = connector_asset()
+        digest = hashlib.sha256()
+        with self.bin.open('rb') as stream:
+            while chunk := stream.read(1024 * 1024):
+                digest.update(chunk)
+        return digest.hexdigest() == expected
+
     def _install(self):
-        system, machine = platform.system().lower(), platform.machine().lower()
-        architecture = "arm64" if machine in ("arm64", "aarch64") else "amd64" if machine in ("x86_64", "amd64") else None
-        if system not in ("linux", "windows") or not architecture:
-            raise RuntimeError("Automatic connector installation supports Linux and Windows. Set a trusted cloudflared_path on this platform.")
-        name = "cloudflared-" + system + "-" + architecture + (".exe" if system == "windows" else "")
-        request = Request("https://api.github.com/repos/cloudflare/cloudflared/releases/latest", headers={"User-Agent": "Sharelet/0.4"})
-        with urlopen(request, timeout=25) as response:
-            release = json.load(response)
-        asset = next((a for a in release.get("assets", []) if a["name"] == name), None)
-        if not asset or not re.fullmatch(r"sha256:[a-f0-9]{64}", asset.get("digest", "")):
-            raise RuntimeError("The connector release has no verifiable checksum.")
-        url = asset.get("browser_download_url", "")
-        if not url.startswith("https://github.com/cloudflare/cloudflared/releases/download/"):
-            raise RuntimeError("Unexpected connector source")
+        name, expected = connector_asset()
+        url = "https://github.com/cloudflare/cloudflared/releases/download/" + CLOUDFLARED_VERSION + "/" + name
         self.bin.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         temporary = self.bin.with_name(self.bin.name+".download-"+secrets.token_hex(6))
         digest = hashlib.sha256()
@@ -98,10 +122,10 @@ class PublicLink:
             with urlopen(Request(url, headers={"User-Agent": "Sharelet/0.4"}), timeout=40) as response, temporary.open("wb") as output:
                 while chunk := response.read(1024 * 1024):
                     size += len(chunk)
-                    if size > 120 * 1024 * 1024:
+                    if size > MAX_CONNECTOR:
                         raise RuntimeError("Connector download exceeded its limit")
                     digest.update(chunk); output.write(chunk)
-            if "sha256:" + digest.hexdigest() != asset["digest"]:
+            if digest.hexdigest() != expected:
                 raise RuntimeError("Connector checksum verification failed")
             temporary.chmod(0o700)
             os.replace(temporary, self.bin)
@@ -110,7 +134,7 @@ class PublicLink:
 
     def _open(self, epoch):
         try:
-            if not self.bin.exists():
+            if not self.bin.exists() or self._managed and not self._verified_cache():
                 self._install()
             with self._lock:
                 if epoch != self._epoch:

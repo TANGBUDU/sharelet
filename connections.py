@@ -14,13 +14,13 @@ from urllib.parse import urlsplit
 
 try:
     from .catalog import CONTROL_TOOLS, UTILITY_TOOLS, tool_binding
-    from .image_provider import atomic_private
+    from .image_provider import atomic_private, capture_profile_key_reader
     from .presets import image_bindings
     from .public_tools import basic_bindings, direct_dispatch
     from .sharelet import CapsuleError, DispatchNotSent, current_dispatch_guard
 except ImportError:
     from catalog import CONTROL_TOOLS, UTILITY_TOOLS, tool_binding
-    from image_provider import atomic_private
+    from image_provider import atomic_private, capture_profile_key_reader
     from presets import image_bindings
     from public_tools import basic_bindings, direct_dispatch
     from sharelet import CapsuleError, DispatchNotSent, current_dispatch_guard
@@ -84,6 +84,7 @@ class PortableBridge:
         self.root = Path(root)
         self.path = self.root / "connections.json"
         self.builtin, self.images = builtin, images
+        self._secret_reader = capture_profile_key_reader()
         self._lock = threading.RLock()
         self._loop = self._thread = None
         self._connections = {}
@@ -338,7 +339,7 @@ class PortableBridge:
                 from image_provider import generate_avatar
             if guard:
                 guard()
-            return {"ok": True, "result": generate_avatar(**arguments, settings_path=self.root / "provider.json")}
+            return {"ok": True, "result": generate_avatar(**arguments, settings_path=self.root / "provider.json", secret_reader=self._secret_reader)}
         with self._lock:
             current = self._connections.get(server)
             available = current and current["state"] == "ready" and any(

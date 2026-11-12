@@ -1,3 +1,19 @@
+# Sharelet 0.5.2 validation
+
+Date: 2026-11-12. Addresses the three catalog review requests against `06e58ce218f3a684e4fa6cfdfbbc654142e55a8e`.
+
+- **153 tests passed on Windows and Linux.** New coverage checks default-off relay startup, explicit self-hosted relay opt-in, two-profile HTTP/generation workers, missing/unbound credential scopes, all four connector target selections, exact versioned URLs, corrupt downloads/caches and unsupported-platform refusal.
+- A separate probe used the **real Hermes `agent.secret_scope`** API from checkout `ca4360692055bdb4df3a695c164646e528891da8`: two synthetic profile keys stayed isolated after their calling scopes were reset, including unscoped HTTP and generation workers. An unrelated process key was ignored on a missing/unbound multiplex scope. Owner consent was still required, and host profile keys were not written into provider settings. Image HTTP was mocked; no paid API call was made. Reproduce with `python tests/hermes_profile_probe.py --hermes-source /path/to/hermes-agent`.
+- The official Hermes validator passed the public source snapshot. Its only warning category is the disclosed tunnel-service capability caution; there are no private core import warnings. The optional `OPENAI_API_KEY` declaration does not enable images or gate ordinary tool sharing.
+- The installable archive cold-started on both systems with third-party site-packages disabled; a second process attached to the same workspace. All three UI catalogs retain 589 messages with matching placeholders, and the profile-key enable button is translated.
+- **cloudflared 2026.10.7**: downloaded and SHA-256-verified the three distinct official upstream binaries. The Windows AMD64 binary ran `--version` on Windows; Linux AMD64 was installed through the new exact-URL installer, its cache reverified, and `--version` executed on Linux. No binaries are committed or bundled. Automatic cache entries are checked before execution, and auto-update remains disabled.
+- Four target pins are explicit in `tunnel.py`. Cloudflare does **not** publish a native Windows ARM64 executable at this release: Windows 11 ARM64 selects the official Windows AMD64 asset and the same pinned hash, using OS x64 emulation. Selection/digest behavior is tested; Windows ARM64 and Linux ARM64 were not executed on hardware. Older Windows ARM64/unsupported targets fail without downloading. A creator-supplied executable path remains an explicit trust override.
+- Relays are disabled by default in Hermes and standalone entry points. No relay is created, registered or contacted unless `relay_url` is explicitly set. Existing self-hosted relay operation remains covered. Documentation also distinguishes an HTTP fragment from trust in the relay's landing-page JavaScript.
+
+Evidence: [catalog review checks](validation/catalog-review-0.5.2.json), [upstream binary hashes and target mapping](validation/cloudflared-2026.10.7.json). The earlier Weather/relay runs below are historical evidence, not newly repeated upstream-tool/browser tests for 0.5.2.
+
+## Earlier releases
+
 # Sharelet 0.5.1
 
 Date: 2026-11-12. Catalog build of 0.5.0. The optional built-in image provider now uses only the key entered in Sharelet or the host's `OPENAI_API_KEY`; it no longer reads other credential files. The weather presentation has its own card title in all three languages, and the share list no longer mentions the removed Go-live button. A real Hermes profile loaded Sharelet with the unchanged Weather 2.1.0 plugin, and the demo video was recorded from that run through the public relay.

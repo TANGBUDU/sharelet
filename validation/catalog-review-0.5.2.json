@@ -1,0 +1,52 @@
+{
+  "version": "0.5.2",
+  "reviewed_base": "06e58ce218f3a684e4fa6cfdfbbc654142e55a8e",
+  "windows": {
+    "tests": 153,
+    "seconds": 93.486
+  },
+  "linux": {
+    "tests": 153,
+    "seconds": 118.347
+  },
+  "real_sdk_profile_probe": {
+    "ok": true,
+    "real_hermes_secret_scope": true,
+    "profiles": 2,
+    "unscoped_http_workers_use_owner_scope": true,
+    "generation_workers_use_owner_scope": true,
+    "missing_or_unbound_scope_ignores_process_key": true,
+    "owner_consent_required": true,
+    "keys_not_persisted": true,
+    "default_relay_disabled": true,
+    "paid_api_calls": 0,
+    "hermes_commit": "ca4360692055bdb4df3a695c164646e528891da8"
+  },
+  "connector_linux": {
+    "ok": true,
+    "version": "2026.10.7",
+    "verified_managed_cache": true,
+    "executed_version": "cloudflared version 2026.10.7 (built 2026-10-30-17:05 UTC)"
+  },
+  "connector_windows": "cloudflared version 2026.10.7 (built 2026-10-30T09:43 UTC)",
+  "official_validator_ok": true,
+  "cold_start_windows": true,
+  "cold_start_linux": true,
+  "locales": [
+    "en",
+    "zh",
+    "ja"
+  ],
+  "messages_per_locale": 589,
+  "paid_api_calls": 0,
+  "runtime_sha256": {
+    "__init__.py": "baa67a3b951870bfac9c8a3cbfc01a4f81c7eea05a44b264110de3fec042fd2f",
+    "app.py": "7c42e89ea81e25248b5d5d439b0a47f52161c5849a388ac567f0585264638cab",
+    "connections.py": "b19ae147bde0bfd12ef3561e539c0ccaca183127d7380486081b9747903157fb",
+    "image_provider.py": "35abaf636dd5b5aa81691d779f6094797a623e026943e6d3b71b32354e1064bc",
+    "plugin.yaml": "110150b3e3755c9fea2b9e9b5e18ab130339d6b1af7a7c0ab1efcc8ce0746339",
+    "relay.py": "c14a193c0204d4ca050592ab1590dcc4e9dd49d6212b82042516dde7361dd98f",
+    "service.py": "9f1775cc6a56377492c1bfa079a07634a1e27893624eb2a10e911b8449d4785a",
+    "tunnel.py": "5cf345b33795e80a4b8fc6dd70e16f507ab2752c8345145a4161db83b013409c"
+  }
+}

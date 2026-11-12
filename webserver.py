@@ -158,7 +158,7 @@ def create_server(manager, catalog, *, port=0, guest_only=False, connection=None
                 pass
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = "Sharelet/0.5.1"
+        server_version = "Sharelet/0.5.2"
 
         def setup(self):
             super().setup(); self.connection.settimeout(20)
@@ -342,7 +342,7 @@ def create_server(manager, catalog, *, port=0, guest_only=False, connection=None
                 scoped=re.match(r"/(?:api/)?s/"+TOKEN+r"(?:/|$)",path)
                 if scoped:self._share(scoped[1])
                 if path=="/healthz":
-                    self._reply(200,{"ok":True,"version":"0.5.1","guest_only":guest_only,
+                    self._reply(200,{"ok":True,"version":"0.5.2","guest_only":guest_only,
                                      **({"relay_host":relay.host_id} if relay else {})});return
                 if path=='/api/local/identify':
                     if guest_only:raise CapsuleError('This endpoint is private.', 'unauthorized', 401)
@@ -384,7 +384,7 @@ def create_server(manager, catalog, *, port=0, guest_only=False, connection=None
                                      "provider":provider.public() if provider else None,"budget":jobs.budget() if jobs else None,
                                      "usage":jobs.usage() if jobs else None,
                                      "connections":connector.connection_status() if connector else None,
-                                     "relay":relay.status() if relay else None,"stable_links":bool((relay and relay.ready) or fixed_origin),"version":"0.5.1"});return
+                                     "relay":relay.status() if relay else None,"stable_links":bool((relay and relay.ready) or fixed_origin),"version":"0.5.2"});return
                 match=re.fullmatch(r"/api/s/"+TOKEN+r"/jobs/"+JOB+r"/media",path)
                 if match:
                     job=self._job(match[1],match[2])

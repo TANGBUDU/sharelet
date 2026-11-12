@@ -21,7 +21,7 @@ def main():
     parser.add_argument('--cloudflared',type=Path)
     parser.add_argument('--generation-limit',type=int,default=30)
     parser.add_argument('--execution-limit',type=int,default=10000)
-    parser.add_argument('--relay-url',default=DEFAULT_RELAY,help='Stable-link relay; pass an empty string to disable')
+    parser.add_argument('--relay-url',default=DEFAULT_RELAY,help='Optional creator-run stable-link relay; disabled by default')
     parser.add_argument('--public-origin',default='',help='An https address you run yourself for the guest port')
     args=parser.parse_args()
     data=args.data_dir.resolve()

@@ -7,9 +7,9 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 try:
-    from .image_provider import atomic_private
+    from .image_provider import atomic_private, capture_profile_key_reader
 except ImportError:
-    from image_provider import atomic_private
+    from image_provider import atomic_private, capture_profile_key_reader
 
 
 class ServiceLease:
@@ -64,6 +64,8 @@ class Runtime:
         self.connection, self.port, self.guest_port = connection, port, guest_port
         self.binary, self.generation_limit = binary, generation_limit
         self.execution_limit, self.connector = execution_limit, connector
+        # Capture the owner profile before any monitor or HTTP worker can take over.
+        self._secret_reader = capture_profile_key_reader()
         try:
             from .relay import normalise_base
         except ImportError:
@@ -74,7 +76,7 @@ class Runtime:
         self.lease, self.stop_event, self._guard = ServiceLease(root), threading.Event(), threading.RLock()
         self.manager = self.jobs = self.public = None
         self.servers, self.threads = [], []
-        self.info = {"service": "starting", "version": "0.5.1"}
+        self.info = {"service": "starting", "version": "0.5.2"}
 
     @staticmethod
     def _origin(value):
@@ -120,7 +122,7 @@ class Runtime:
             from relay import RelayLink
             from webserver import create_server
         self.manager = CapsuleManager(self.root, self.dispatch)
-        provider = ProviderSettings(self.root)
+        provider = ProviderSettings(self.root, secret_reader=self._secret_reader)
         # A fixed address is run by the creator; otherwise open a quick tunnel on demand.
         self.public = None if self.public_origin else PublicLink(self.root, binary=self.binary)
         if self.public and self.relay_url:
@@ -166,7 +168,7 @@ class Runtime:
             worker.start(); self.threads.append(worker)
         self.info.update(service="listening", owner_url=f"http://127.0.0.1:{owner.server_port}/", owner_port=owner.server_port,
                          guest_port=guest.server_port, owner_entry_file=str(self.root / "owner-entry.txt"))
-        atomic_private(self.root / "service.json", {"pid": os.getpid(), "owner_port": owner.server_port, "guest_port": guest.server_port, "version": "0.5.1"})
+        atomic_private(self.root / "service.json", {"pid": os.getpid(), "owner_port": owner.server_port, "guest_port": guest.server_port, "version": "0.5.2"})
         owner_url = f"http://127.0.0.1:{owner.server_port}/#owner={self.manager.owner_token}"
         # This file intentionally contains the owner credential, not agent tool output.
         fd = os.open(self.root / "owner-entry.txt", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)

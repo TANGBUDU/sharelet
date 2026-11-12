@@ -1,14 +1,16 @@
-# Sharelet 0.5.1
+# Sharelet 0.5.2
 
 **Your tools. A link anyone can use.**
 
-Pick a tool you already use in Hermes, click **Create share link**, and send the link. Guests use the tool in their browser. They need no agent, account or API key, and the link keeps working after your computer restarts or reconnects.
+Pick a tool you already use in Hermes, click **Create share link**, and send the link. Guests use the tool in their browser. They need no agent, account or API key. Stable addresses across reconnects are available with your own relay or fixed public address.
 
 [简体中文](README.zh-CN.md) · [日本語](README.ja.md)
 
 ![Creating a share link for the Weather plugin](docs/creator.png)
 
 ![A guest running the shared Weather tool on a phone](docs/guest-weather.png)
+
+These screenshots show an explicitly configured relay. The default configuration uses raw tunnel links.
 
 From the catalog: `hermes plugins install sharelet --enable`, or `hermes plugins install TANGBUDU/sharelet --enable`.
 
@@ -31,37 +33,39 @@ From the catalog: `hermes plugins install sharelet --enable`, or `hermes plugins
 
 Each link allows 20 runs for 7 days by default and can be closed at any time. **More settings** changes the run count (up to 1,000) and expiry (up to 30 days), renames the share, or fixes inputs guests should not change. Tools that may change data, send messages or cost money ask for one confirmation before the link is created; tools marked destructive cannot be shared.
 
-The tool runs on your computer, so links work while it is on. When it is off, guests see a short "creator offline" page that opens the tool by itself once you are back.
+The tool runs on your computer, so it must stay online. An optional self-hosted relay can show a "creator offline" page and retry when your computer returns.
 
-## Links that do not break
+## Public addresses and optional stable links
 
-Sharelet opens a temporary Cloudflare address for guests only while you have a public link, and reconnects it automatically if it drops. Those temporary addresses change on every reconnect, so links point at a small **relay** instead:
+Sharelet opens a temporary Cloudflare address for guests only while you have a public link, and reconnects it automatically if it drops. **Relay routing is disabled by default:** links use the temporary address and must be copied again after it changes. No relay is contacted until you explicitly set one. For a stable link, run your own relay and set `relay_url`, or supply a fixed `public_origin`:
 
 ```
-https://sharelet.109-123-230-235.sslip.io/h/<your host id>#<link token>
+https://relay.example.com/h/<your host id>#<link token>
 ```
 
-The relay remembers only your host's random id and its current temporary address, and forwards guests there. The link token is after `#`, which browsers never send to a server, so the relay cannot see or use your links. The default relay is run by the Sharelet author with no uptime guarantee.
+An explicitly configured relay receives your host's random ID, relay secret and current temporary address. The link token is after `#`, so it is absent from HTTP requests to the relay API. The relay's landing-page JavaScript handles that fragment and is trusted code: operate the relay yourself and control the code it serves.
 
 Options, under `settings` in the plugin entry:
 
 | Setting | Effect |
 |---|---|
-| *(default)* | Stable links through the default relay. |
-| `relay_url: https://relay.example.com` | Use your own relay. `relay_service/` has the server (standard library only); run it behind any HTTPS reverse proxy. |
+| *(default)* | No relay. Raw temporary tunnel links; no relay registration or heartbeat. |
+| `relay_url: https://relay.example.com` | Explicitly opt into your own relay. Server code is in `relay_service/`. |
 | `relay_url: ""` | No relay. Links use the temporary address directly and change after a reconnect. |
 | `public_origin: https://my-pc.example.ts.net` | An address you run yourself for the guest port (for example `tailscale funnel 9272` or a Cloudflare named tunnel). No temporary tunnel or relay is used. |
 
 Without a relay, the computer still has to be on for a link to work; nothing here hosts your tool elsewhere.
 
+Upgrading from 0.5.1: restart Hermes after updating. The former automatic author-run relay is no longer used. Copy new raw links, or explicitly configure a relay you operate yourself. Link signing keys, run counts and expiry remain in your workspace.
+
 ## What Sharelet does on your computer
 
 - **Local servers.** While Hermes runs, Sharelet serves the creator page on `127.0.0.1:9271` and guest pages on `127.0.0.1:9272`.
-- **Public address.** When a public link is active, Sharelet downloads `cloudflared` from Cloudflare's official GitHub release, checks its published SHA-256 digest, and runs it as a background process. It forwards guests to the guest port only, and it stops when no public link is left.
-- **Relay.** To keep links stable, Sharelet sends a random host ID, a secret and the current tunnel address to the relay at `relay_url`: every 60 seconds while a public link is active, otherwise an offline status every 10 minutes. The default relay is run by the author. Link tokens never reach it. Set `relay_url: ""` to turn this off.
+- **Public address.** When a public link is active, Sharelet downloads `cloudflared` **2026.10.7** from the exact official release URL and verifies its SHA-256 against the hard-coded platform pins in `tunnel.py`. Managed cached executables are checked again before launch. It forwards guests to the guest port only, and it stops when no public link is left. An explicitly supplied `cloudflared_path` is a creator-trusted installation, outside automatic download management.
+- **Relay.** Off by default, with no author-run endpoint configured. Only when you explicitly set `relay_url` does Sharelet register a random host ID and secret with that relay and send its current tunnel address: every 60 seconds while online, otherwise an offline status every 10 minutes. The relay serves trusted guest-page JavaScript, so use a relay you operate yourself.
 - **Tools.** When a guest uses a link, Sharelet runs that one tool through Hermes with the inputs the guest is allowed to change. You grant each tool. A tool that is not marked read-only needs a separate confirmation for every share.
 - **Files.** Sharelet writes only to its own data folder: links, run records, results, and its signing keys.
-- **Optional images.** The built-in image recipes are off until you set them up. They use either a key you enter in Sharelet, saved in its data folder with owner-only permissions, or the host's `OPENAI_API_KEY` if you choose that. These recipes are the only part that calls `api.openai.com`.
+- **Optional images.** The built-in image recipes are off until you set them up. They use either a key you enter in Sharelet, saved in its data folder with owner-only permissions, or your explicitly enabled Hermes-profile `OPENAI_API_KEY`, resolved through `agent.secret_scope.get_secret`. The profile scope is retained across HTTP, job and service-takeover threads. These recipes are the only part that calls `api.openai.com`.
 - **Not included.** No telemetry, no self-update.
 
 ## Advanced
@@ -113,9 +117,9 @@ Python 3.11+ is recommended. Built-in text tools run with the standard library:
 python app.py --mode local
 ```
 
-Open the private URL in `.state/owner-entry.txt`, choose **Text cleanup** or **Reading time** and click **Create share link**. For a link that only works on this computer, tick **Only on this computer** under **More settings**. No image key is needed. Add `--relay-url ""` to skip the relay, or `--public-origin https://...` to use your own address.
+Open the private URL in `.state/owner-entry.txt`, choose **Text cleanup** or **Reading time** and click **Create share link**. For a link that only works on this computer, tick **Only on this computer** under **More settings**. No image key is needed. Relays are disabled by default; add `--relay-url https://relay.example.com` to use your own relay, or `--public-origin https://...` for your own address.
 
-A public link opens a guest-only public address automatically. The connector is downloaded from Cloudflare's official release and its published SHA-256 digest is checked before execution. Windows and Linux AMD64/ARM64 support automatic installation; other platforms can supply an installed `--cloudflared` executable.
+A public link opens a guest-only public address automatically. The connector version and SHA-256 values are pinned in `tunnel.py`. Linux AMD64/ARM64 and Windows AMD64 use their upstream executables. Upstream publishes no native Windows ARM64 executable: Windows 11 ARM64 selects the official Windows AMD64 asset with the same pinned digest, using OS x64 emulation. This compatibility path has selection/checksum tests, not an ARM64 hardware test. Other platforms can supply a creator-trusted `--cloudflared` executable.
 
 On Windows, `Start-Sharelet.ps1` opens the prepared development workspace if present, or starts a local workspace. Its private `.preview-*-access.json` files are excluded from the release.
 
@@ -196,17 +200,7 @@ Actual client testing and its approval limitations are recorded in [VALIDATION.m
 
 ### Optional images
 
-Standalone mode includes three fixed recipes. Image settings appear in the creator page only once an image recipe is available. In **Connection → Optional image provider**, connect your own OpenAI account. A host `OPENAI_API_KEY` is used only after the creator explicitly clicks **Enable images with the existing host key**. Alternatively reuse an existing private credential file with this `provider.json` in the workspace data directory:
-
-```json
-{
-  "provider": "openai",
-  "credential_file": "/absolute/path/to/existing-private.env",
-  "credential_field": "OPENAI_API_KEY"
-}
-```
-
-The existing file can also be JSON; a dot-separated field path is supported. Creator state returns neither the key nor its file path. For Hermes, add `sharelet_images` to `mcp_allowlist` and configure the included adapter in the same profile:
+Standalone mode includes three fixed recipes. Image settings appear in the creator page only once an image recipe is available. In **Connection → Optional image provider**, enter the workspace's own OpenAI key, or explicitly enable the current Hermes profile's key when the SDK makes it available. `OPENAI_API_KEY` is declared as optional in `plugin.yaml` and resolved through `agent.secret_scope.get_secret`, with the owner's profile captured for background workers. Missing or unbound multiplex scopes fail closed. Standalone installs without Hermes can enter a workspace key; they do not fall back to the process environment. Other credential files are not read. Creator state returns neither the key nor a credential-derived identifier. For Hermes, add `sharelet_images` to `mcp_allowlist` and configure the included adapter in the same profile:
 
 ```yaml
 mcp_servers:
